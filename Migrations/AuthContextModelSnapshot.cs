@@ -57,6 +57,9 @@ namespace Auth.Migrations
                     b.Property<DateTime?>("ResetTokenExpires")
                         .HasColumnType("datetime2");
 
+                    b.Property<int>("Role")
+                        .HasColumnType("int");
+
                     b.Property<string>("Title")
                         .HasColumnType("nvarchar(max)");
 
@@ -97,6 +100,9 @@ namespace Auth.Migrations
                                 .HasColumnType("datetime2");
 
                             b1.Property<string>("ReplaceRevoked")
+                                .HasColumnType("nvarchar(max)");
+
+                            b1.Property<string>("ReplacedByToken")
                                 .HasColumnType("nvarchar(max)");
 
                             b1.Property<DateTime?>("Revoked")

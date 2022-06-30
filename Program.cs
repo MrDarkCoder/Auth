@@ -2,6 +2,10 @@
 using System.Text.Json.Serialization;
 using Auth.Data;
 using Auth.Helper;
+using Auth.Middlewares;
+using Auth.Repository.Interfaces;
+using Auth.Repository.Services;
+using Swashbuckle.AspNetCore.Filters;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,23 +16,38 @@ var builder = WebApplication.CreateBuilder(args);
 
     //! TODO : Add Cors
 
-
     // Controllers + Json Serializing For ENUM as STRING
     builder.Services.AddControllers()
                     .AddJsonOptions(
                         x => x.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter())
                     );
 
-    //! TODO : Auto Mapper
+    // Auto Mapper : Injected
+    builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
     // Configure strongly typed setting objects
     builder.Services.Configure<AppSettings>(builder.Configuration.GetSection("AppSettings"));
 
-    //! TODO : Add Services/Repositories into DI
+    // Add Services/Repositories into DI
+    builder.Services.AddScoped<IJwtUtillRepository, JwtUtillService>();
+    builder.Services.AddScoped<IAccountRepository, AccountService>();
 
     // Swagger UI
     builder.Services.AddEndpointsApiExplorer();
-    builder.Services.AddSwaggerGen();
+    builder.Services.AddSwaggerGen(
+        options =>
+        {
+            options.AddSecurityDefinition("oauth2", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Description = "Bearer {token}",
+                In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+                Name = "Authorization",
+                Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
+                Scheme = "Bearer"
+            });
+            options.OperationFilter<SecurityRequirementsOperationFilter>();
+        }
+    );
 }
 
 var app = builder.Build();
@@ -42,9 +61,20 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseAuthorization();
+// app.UseAuthorization();
+app.UseHttpLogging();
+
+app.UseMiddleware<ErrorHandlerMiddleware>();
+
+// using custom middle ware for authenticate and authorize
+app.UseMiddleware<AuthMiddleware>();
+
 
 app.MapControllers();
 
 app.Run();
 
+
+
+
+// console.log(require('crypto').randomBytes(256).toString('base64'));

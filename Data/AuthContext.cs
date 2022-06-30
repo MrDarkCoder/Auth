@@ -12,7 +12,7 @@ namespace Auth.Data
         }
 
         // Entity
-        DbSet<Account> Accounts { get; set; }
+        public DbSet<Account> Accounts { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {

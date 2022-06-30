@@ -18,6 +18,7 @@ namespace Auth.Models
         public DateTime? Revoked { get; set; }
         public string RevokedByIP { get; set; }
         public string ReplaceRevoked { get; set; }
+        public string ReplacedByToken { get; set; }
 
         public bool IsExpired => DateTime.UtcNow >= Expires;
         public bool IsRevoked => Revoked != null;
