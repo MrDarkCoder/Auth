@@ -30,6 +30,7 @@ var builder = WebApplication.CreateBuilder(args);
 
     // Add Services/Repositories into DI
     builder.Services.AddScoped<IJwtUtillRepository, JwtUtillService>();
+    builder.Services.AddScoped<IAuthRepository, AuthService>();
     builder.Services.AddScoped<IAccountRepository, AccountService>();
 
     // Swagger UI
