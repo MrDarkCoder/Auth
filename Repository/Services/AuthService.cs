@@ -113,6 +113,7 @@ namespace Auth.Repository.Services
 
             var newRefreshToken = rotateRefreshToken(refreshToken, ipAddress);
             account.RefreshTokens.Add(newRefreshToken);
+            account.RefreshToken = newRefreshToken.Token;
 
             // remove old refresh tokens
             removeOldRefreshToken(account);

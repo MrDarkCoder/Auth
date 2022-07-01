@@ -63,6 +63,16 @@ namespace Auth.Controllers
             return Ok(account);
         }
 
+        [HttpDelete("{id:int}")]
+        public ActionResult Delete(int id)
+        {
+            // users can Delete their own account and admins can Delete any account
+            if (id != Account.Id && Account.Role != Role.Admin)
+                return Unauthorized(new { message = "Unauthorized" });
+
+            _accountRepository.Delete(id);
+            return Ok(new { message = "Account Successfully Deleted" });
+        }
 
     }
 }
