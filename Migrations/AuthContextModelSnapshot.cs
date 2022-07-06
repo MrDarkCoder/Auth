@@ -54,6 +54,9 @@ namespace Auth.Migrations
                     b.Property<string>("RefreshToken")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("ResetToken")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime?>("ResetTokenExpires")
                         .HasColumnType("datetime2");
 

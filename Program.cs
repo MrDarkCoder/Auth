@@ -31,6 +31,7 @@ var builder = WebApplication.CreateBuilder(args);
     // Add Services/Repositories into DI
     builder.Services.AddScoped<IJwtUtillRepository, JwtUtillService>();
     builder.Services.AddScoped<IAuthRepository, AuthService>();
+    builder.Services.AddScoped<IEmailRepository, EmailService>();
     builder.Services.AddScoped<IAccountRepository, AccountService>();
 
     // Swagger UI
@@ -60,12 +61,13 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseMiddleware<ErrorHandlerMiddleware>();
+
 app.UseHttpsRedirection();
 
 // app.UseAuthorization();
 app.UseHttpLogging();
 
-app.UseMiddleware<ErrorHandlerMiddleware>();
 
 // using custom middle ware for authenticate and authorize
 app.UseMiddleware<AuthMiddleware>();

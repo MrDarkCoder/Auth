@@ -9,5 +9,10 @@ namespace Auth.Repository.Interfaces
         AuthenticateResponse RefreshToken(string token, string ipAddress);
         void RevokeToken(string token, string ipAddress);
 
+        void VerifyEmail(string token);
+        void ForgotPassword(ForgotPasswordRequest forgotPasswordRequest, string origin);
+        void ResetPassword(ResetPasswordRequest resetPasswordRequest);
+        void ValidateResetToken(ValidateResetTokenRequest validateResetTokenRequest);
+
     }
 }

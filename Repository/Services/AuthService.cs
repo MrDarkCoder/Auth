@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Auth.Data;
 using Auth.DTOs;
 using Auth.Helper;
@@ -12,12 +13,14 @@ namespace Auth.Repository.Services
     {
         private readonly AuthContext _authContext;
         private readonly IJwtUtillRepository _jwtUtillRepository;
+        private readonly IEmailRepository _emailRepository;
         private readonly AppSettings _appSettings;
         private readonly IMapper _mapper;
-        public AuthService(AuthContext authContext, IMapper mapper, IJwtUtillRepository jwtUtillRepository, IOptions<AppSettings> appSettings)
+        public AuthService(AuthContext authContext, IMapper mapper, IJwtUtillRepository jwtUtillRepository, IEmailRepository emailRepository, IOptions<AppSettings> appSettings)
         {
             _authContext = authContext;
             _jwtUtillRepository = jwtUtillRepository;
+            _emailRepository = emailRepository;
             _appSettings = appSettings.Value;
             _mapper = mapper;
         }
@@ -57,7 +60,7 @@ namespace Auth.Repository.Services
             return response;
         }
 
-        // Register
+        // Register : Pending Verfication
         public void Register(RegisterRequest registerRequest, string origin)
         {
             if (_authContext.Accounts.Any(a => a.Email == registerRequest.Email))
@@ -75,10 +78,10 @@ namespace Auth.Repository.Services
             account.Created = DateTime.UtcNow;
 
             // skiping verification mail
-            // account.Verification = generateVerficationToken();
+            account.Verification = generateVerificationToken();
             // Making the mail verified!
-            account.Verification = null;
-            account.Verified = DateTime.UtcNow;
+            // account.Verification = null;
+            // account.Verified = DateTime.UtcNow;
 
             // 03 Hash Password
             var salt = BCrypt.Net.BCrypt.GenerateSalt(10);
@@ -88,7 +91,7 @@ namespace Auth.Repository.Services
             _authContext.SaveChanges();
 
             // skiping sendverifymail
-
+            sendVerificationEmail(account, origin);
         }
 
         // refresh token
@@ -190,6 +193,142 @@ namespace Auth.Repository.Services
             }
         }
 
+
+        // Part of Mailing 
+        public void VerifyEmail(string token)
+        {
+            var account = _authContext.Accounts.SingleOrDefault(x => x.Verification == token);
+            if (account == null) throw new AppException("Verification Failed");
+
+            account.Verified = DateTime.UtcNow;
+            account.Verification = null;
+
+            _authContext.Accounts.Update(account);
+            _authContext.SaveChanges();
+        }
+
+        public void ForgotPassword(ForgotPasswordRequest forgotPasswordRequest, string origin)
+        {
+            var account = _authContext.Accounts.SingleOrDefault(a => a.Email == forgotPasswordRequest.Email);
+
+            // always return ok response to prevent email enumeration
+            if (account == null) return;
+
+            // create reset token that expires after 1 day
+            account.ResetToken = generateResetToken();
+            account.ResetTokenExpires = DateTime.UtcNow.AddDays(1);
+
+            _authContext.Accounts.Update(account);
+            _authContext.SaveChanges();
+
+            // Send Email
+            sendPasswordResetEmail(account, origin);
+
+        }
+
+        public void ResetPassword(ResetPasswordRequest resetPasswordRequest)
+        {
+            var account = getAccountByResetToken(resetPasswordRequest.Token);
+
+            // update password and remove reset token
+            account.PasswordHash = BCrypt.Net.BCrypt.HashPassword(resetPasswordRequest.Password);
+            account.PasswordReset = DateTime.UtcNow;
+            account.ResetToken = null;
+            account.ResetTokenExpires = null;
+
+            _authContext.Accounts.Update(account);
+            _authContext.SaveChanges();
+        }
+
+        public void ValidateResetToken(ValidateResetTokenRequest validateResetTokenRequest)
+        {
+            getAccountByResetToken(validateResetTokenRequest.Token);
+        }
+
+        private Account getAccountByResetToken(string token)
+        {
+            var account = _authContext.Accounts.SingleOrDefault(x =>
+                x.ResetToken == token && x.ResetTokenExpires > DateTime.UtcNow);
+            if (account == null) throw new AppException("Invalid token");
+            return account;
+        }
+
+        private string generateResetToken()
+        {
+            // token is a cryptographically strong random sequence of values
+            var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(64));
+
+            // ensure token is unique by checking against db
+            var tokenIsUnique = !_authContext.Accounts.Any(x => x.ResetToken == token);
+            if (!tokenIsUnique)
+                return generateResetToken();
+
+            return token;
+        }
+
+        private string generateVerificationToken()
+        {
+            // token is a cryptographically strong random sequence of values
+            var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(64));
+
+            // ensure token is unique by checking against db
+            var tokenIsUnique = !_authContext.Accounts.Any(x => x.Verification == token);
+            if (!tokenIsUnique)
+                return generateVerificationToken();
+
+            return token;
+        }
+
+        private void sendPasswordResetEmail(Account account, string origin)
+        {
+            string message;
+            if (!string.IsNullOrEmpty(origin))
+            {
+                var resetUrl = $"{origin}/account/reset-password?token={account.ResetToken}";
+                message = $@"<p>Please click the below link to reset your password, the link will be valid for 1 day:</p>
+                            <p><a href=""{resetUrl}"">{resetUrl}</a></p>";
+            }
+            else
+            {
+                message = $@"<p>Please use the below token to reset your password with the <code>/accounts/reset-password</code> api route:</p>
+                            <p><code>{account.ResetToken}</code></p>";
+            }
+
+            _emailRepository.Send(
+                to: account.Email,
+                subject: "Sign-up Verification API - Reset Password",
+                html: $@"<h4>Reset Password Email</h4>
+                        {message}"
+            );
+        }
+
+        private void sendVerificationEmail(Account account, string origin)
+        {
+            string message;
+            if (!string.IsNullOrEmpty(origin))
+            {
+                // origin exists if request sent from browser single page app (e.g. Angular or React)
+                // so send link to verify via single page app
+                var verifyUrl = $"{origin}/account/verify-email?token={account.Verification}";
+                message = $@"<p>Please click the below link to verify your email address:</p>
+                            <p><a href=""{verifyUrl}"">{verifyUrl}</a></p>";
+            }
+            else
+            {
+                // origin missing if request sent directly to api (e.g. from Postman)
+                // so send instructions to verify directly with api
+                message = $@"<p>Please use the below token to verify your email address with the <code>/accounts/verify-email</code> api route:</p>
+                            <p><code>{account.Verification}</code></p>";
+            }
+
+            _emailRepository.Send(
+                to: account.Email,
+                subject: "Sign-up Verification API - Verify Email",
+                html: $@"<h4>Verify Email</h4>
+                        <p>Thanks for registering!</p>
+                        {message}"
+            );
+        }
 
     }
 }

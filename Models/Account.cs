@@ -13,6 +13,7 @@ namespace Auth.Models
         public bool AcceptTerms { get; set; }
         public string Verification { get; set; }
         public string RefreshToken { get; set; }
+        public string ResetToken { get; set; }
         public DateTime? ResetTokenExpires { get; set; }
         public DateTime? Verified { get; set; }
         public DateTime? PasswordReset { get; set; }

@@ -62,7 +62,7 @@ namespace Auth.Controllers
             _authRepository.Register(registerRequest, Request.Headers["origin"]);
             return Ok(new { message = "Registration successful, Please Login" });
         }
-        
+
         // [AllowAnonymous]
         // [HttpPost("register")]
         // public ActionResult<AccountResponse> Create(CreateRequest createRequest)
@@ -70,6 +70,38 @@ namespace Auth.Controllers
         //     var response = _accountRepository.Create(createRequest);
         //     return Ok(response);
         // }
+
+        [AllowAnonymous]
+        [HttpPost("verify-email")]
+        public IActionResult VerifyEmail(VerifyEmailRequest verifyEmailRequest)
+        {
+            _authRepository.VerifyEmail(verifyEmailRequest.Token);
+            return Ok(new { message = "Verification successful, you can now login" });
+        }
+
+        [AllowAnonymous]
+        [HttpPost("forgot-password")]
+        public IActionResult ForgotPassword(ForgotPasswordRequest forgotPasswordRequest)
+        {
+            _authRepository.ForgotPassword(forgotPasswordRequest, Request.Headers["origin"]);
+            return Ok(new { message = "Please check your email for password reset instructions" });
+        }
+
+        [AllowAnonymous]
+        [HttpPost("validate-reset-token")]
+        public IActionResult ValidateResetToken(ValidateResetTokenRequest validateResetTokenRequest)
+        {
+            _authRepository.ValidateResetToken(validateResetTokenRequest);
+            return Ok(new { message = "Token is valid" });
+        }
+
+        [AllowAnonymous]
+        [HttpPost("reset-password")]
+        public IActionResult ResetPassword(ResetPasswordRequest RresetPasswordRequest)
+        {
+            _authRepository.ResetPassword(RresetPasswordRequest);
+            return Ok(new { message = "Password reset successful, you can now login" });
+        }
 
 
         private void setTokenCookie(string token)
